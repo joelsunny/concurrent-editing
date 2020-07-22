@@ -6,13 +6,16 @@ import Delta from 'quill-delta';
 var io = new WebSocket("ws://localhost:8080");
 var quill;
 
+// client side state variables
+var index = 0;
+var lastIndex = 0;
+
 class Editor extends React.Component {
 
     constructor(props) {
         super(props);
 
         this.log = this.log.bind(this);
-        
     }
 
     componentDidMount() {
@@ -24,7 +27,6 @@ class Editor extends React.Component {
             placeholder: 'Compose an epic...',
             theme: 'snow'  // or 'bubble'
           });
-
           // add a listener for text-change event
           quill.on('text-change', this.log);
 
@@ -32,13 +34,37 @@ class Editor extends React.Component {
 
     async deltaPropogate(msg) {
         io.send(msg);
+        index += 1
     }
 
     log(delta, oldDelta, source) {
         const logstream = document.getElementById("c" + this.props.id);
         logstream.innerHTML = "delta : " + JSON.stringify(delta) + "<br>" + "old: " + JSON.stringify(oldDelta) + "<br>" + "source: " + source + "<br>" + "-------------------<br><br>" + logstream.innerHTML;
-        if (source == "user" ) {
-            this.deltaPropogate(JSON.stringify(delta["ops"]));
+        if (source === "user" ) {
+
+            let m = {
+                type: "delta",
+                op: {
+                    retain:0,
+                    insert:'',
+                    delete:0,
+                },
+                index: index,
+                lastIndex: lastIndex
+            }
+
+            for (let i = 0; i < delta["ops"].length; i++) {
+                if (delta["ops"][i].retain !== undefined) {
+                    m.op.retain = delta["ops"][i].retain
+                }
+                if (delta["ops"][i].insert !== undefined) {
+                    m.op.insert = delta["ops"][i].insert
+                }
+                if (delta["ops"][i].delete !== undefined) {
+                    m.op.delete = delta["ops"][i].delete
+                }
+            }
+            this.deltaPropogate(JSON.stringify(m));
         }
         
     }
@@ -75,24 +101,21 @@ class ServerView extends Editor {
                 this.log(msg.data);
                 let json_msg = JSON.parse(msg.data)
                 console.log(json_msg)
-                let MsgType = json_msg["Type"]
+                let MsgType = json_msg["type"]
                 console.log("MsgType : " + MsgType)
                 if (MsgType === undefined) {
                     console.log("undefined message type")
                 } else if(MsgType === "delta") {
-                    let delta = json_msg["Message"]
+                    let delta = json_msg["log"]["delta"]
                     console.log("INFO: received delta from server" )
-                    console.log(JSON.stringify(delta))
+                    //console.log(JSON.stringify(delta))
+                    console.log(delta.insert.length)
                     quill.updateContents(new Delta()
                                                 .retain(delta["retain"])
                                                 .delete(delta["delete"])
                                                 .insert(delta["insert"])
                                                 , 'api')
-                    // quill.updateContents(
-                    //             [{ "retain" : 4},
-                    //            { "insert": "hello"},
-                    //             {"delete": 0}]
-                    //         , 'api')
+                    lastIndex = json_msg["log"]["index"]
                 } else {
                     console.log(MsgType)
                 }
