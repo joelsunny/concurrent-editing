@@ -46,8 +46,9 @@ func (n *Node) sendDelta() {
 	for {
 		select {
 		case m := <-n.OutChan:
-			fmt.Printf("%d: received message to be forwarded\n", n.me)
-			fmt.Println(m)
+			fmt.Printf("%d: received message to be forwarded\n%v\n", n.me, m)
+			b, _ := json.Marshal(m)
+			n.Conn.WriteMessage(1, b)
 		case <-n.StopChan:
 		}
 	}
@@ -65,6 +66,7 @@ func (n *Node) Run() {
 			log.Println("read:", err)
 			if err.Error() == "websocket: close 1001 (going away)" {
 				fmt.Println("connection terminated")
+				n.Doc.RemoveNode(n.me)
 				return
 			}
 		}

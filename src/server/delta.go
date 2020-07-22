@@ -4,8 +4,9 @@ import "fmt"
 
 // Log structure
 type Log struct {
-	index int
-	delta Operation
+	Index  int       `json:"index"`
+	Delta  Operation `json:"delta"`
+	origin int
 }
 
 // Operation struture
@@ -17,6 +18,7 @@ type Operation struct {
 
 // InMsg describes the structure of message received by nodes
 type InMsg struct {
+	Type      string    `json:"type"`
 	Index     int       `json:"index"` // index maintained by the client
 	Op        Operation `json:"op"`
 	LastIndex int       `json:"lastIndex"` // last server index that the client knows about
@@ -45,22 +47,24 @@ type IncomingDelta struct {
 
 // OutgoingDelta structure
 type OutgoingDelta struct {
-	log        Log
-	lastCommit int
+	Type       string      `json:"type"`
+	Log        interface{} `json:"log"`
+	LastCommit int         `json:"lastCommit"`
 }
 
 // Transform the delta with respect to unseen deltas
 func (m *IncomingDelta) Transform(unseen []Log, index int) Log {
 
-	var log = Log{index: index, delta: Operation{}}
+	var log = Log{Index: index, Delta: Operation{}}
 	for i := 0; i < len(unseen); i++ {
-		uop := unseen[i].delta
-		if uop.Retain <= m.op.Retain {
+		uop := unseen[i].Delta
+		if (uop.Retain <= m.op.Retain) && (unseen[i].origin != m.Origin) {
 			m.op.Retain = m.op.Retain + len(uop.Insert) - uop.Delete
 			// // send the unseen update to the client --> no need as all deltas at server will be broadcasted
 			// m.Origin.RecieveChan <- uop
 		}
 	}
-	log.delta = m.op
+	log.Delta = m.op
+	log.origin = m.Origin
 	return log
 }

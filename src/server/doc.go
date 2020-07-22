@@ -43,6 +43,22 @@ func (d *Document) AddNode(Conn Connection) {
 	d.lastCommits = append(d.lastCommits, 0)
 }
 
+// RemoveNode removes the node
+func (d *Document) RemoveNode(id int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var idx int
+	for i := 0; i < len(d.Nodes); i++ {
+		if d.Nodes[i].me == id {
+			idx = i
+			break
+		}
+	}
+
+	d.Nodes = append(d.Nodes[:idx], d.Nodes[idx+1:]...)
+	d.lastCommits = append(d.lastCommits[:idx], d.lastCommits[idx+1:]...)
+}
+
 // handle delta
 func (d *Document) handleDelta(m IncomingDelta) {
 	fmt.Printf("received new delta from node %d\n", m.Origin)
@@ -68,7 +84,7 @@ func (d *Document) broadcast(m OutChanMsg) {
 		if d.Nodes[i].me == m.Origin {
 			continue
 		}
-		d.Nodes[i].OutChan <- OutgoingDelta{log: m.log, lastCommit: m.lastCommits[i]}
+		d.Nodes[i].OutChan <- OutgoingDelta{Type: "delta", Log: m.log, LastCommit: m.lastCommits[i]}
 	}
 }
 
