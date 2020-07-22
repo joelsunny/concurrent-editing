@@ -1,2 +1,2 @@
 # concurrent-editing
-google docs clone
+google docs toy implementation
