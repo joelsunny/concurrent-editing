@@ -52,6 +52,12 @@ type OutgoingDelta struct {
 	LastCommit int    `json:"lastCommit"`
 }
 
+// SyncMsg structure
+type SyncMsg struct {
+	Type string `json:"type"`
+	Log  []Log  `json:"log"`
+}
+
 // Transform the delta with respect to unseen deltas
 func (m *IncomingDelta) Transform(unseen []Log, index int) Log {
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 )
@@ -43,7 +44,15 @@ func (d *Document) AddNode(Conn Connection) *Node {
 	d.Nodes[d.nextNode] = n
 	d.lastCommits[d.nextNode] = 0
 	d.nextNode = d.nextNode + 1
+	// sync the current state of the document
+	d.syncNode(n)
 	return n
+}
+
+func (d *Document) syncNode(n *Node) {
+	s := SyncMsg{Type: "sync", Log: d.Doc}
+	b, _ := json.Marshal(s)
+	n.OutChan <- b
 }
 
 // RemoveNode removes the node
@@ -81,7 +90,9 @@ func (d *Document) broadcast(m OutChanMsg) {
 	fmt.Println("broadcasting")
 	for id, n := range d.Nodes {
 		if id != m.Origin {
-			n.OutChan <- OutgoingDelta{Type: "delta", Log: m.log, LastCommit: m.lastCommits[id]}
+			msg := OutgoingDelta{Type: "delta", Log: m.log, LastCommit: m.lastCommits[id]}
+			b, _ := json.Marshal(msg)
+			n.OutChan <- b
 		}
 	}
 }

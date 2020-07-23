@@ -12,7 +12,7 @@ type Node struct {
 	mu       sync.Mutex
 	Conn     Connection
 	me       int // id of this node
-	OutChan  chan OutgoingDelta
+	OutChan  chan []byte
 	StopChan chan bool // Channel to signal closing of document
 	Doc      *Document // pointer to the document being modified
 	msgCount int
@@ -21,7 +21,7 @@ type Node struct {
 // NewNode returns a new Node
 func NewNode(Conn Connection, id int, d *Document) *Node {
 	n := Node{Conn: Conn, me: id, Doc: d}
-	n.OutChan = make(chan OutgoingDelta, 100)
+	n.OutChan = make(chan []byte, 100)
 	n.StopChan = make(chan bool, 10)
 	go n.Run()
 	return &n
@@ -46,11 +46,8 @@ func (n *Node) deltaHandler(message []byte) {
 func (n *Node) sendDelta() {
 	for {
 		select {
-		case m := <-n.OutChan:
-			fmt.Printf("%d: received message to be forwarded\n%v\n", n.me, m)
-			b, _ := json.Marshal(m)
-			o, _ := json.Marshal(m.Log)
-			fmt.Println("out insert:", o)
+		case b := <-n.OutChan:
+			// fmt.Printf("%d: received message to be forwarded\n%v\n", n.me, b)
 			n.Conn.WriteMessage(1, b)
 		case <-n.StopChan:
 		}
