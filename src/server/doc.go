@@ -50,6 +50,7 @@ func (d *Document) AddNode(Conn Connection) *Node {
 func (d *Document) RemoveNode(id int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	fmt.Printf("removing node: %v\n", id)
 	delete(d.Nodes, id)
 	delete(d.lastCommits, id)
 }
@@ -59,7 +60,10 @@ func (d *Document) handleDelta(m IncomingDelta) {
 	fmt.Printf("received new delta from node %d\n", m.Origin)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	unseen := d.Doc[m.lastIndex:] // todo?
+	var unseen []Log
+	if m.lastIndex < d.nextIndex-1 {
+		unseen = d.Doc[m.lastIndex+1:] // todo?
+	}
 
 	// transform and send unseen delta back to node and append incoming delta to Log, send incoming data to remaining nodes
 	log := m.Transform(unseen, d.nextIndex)

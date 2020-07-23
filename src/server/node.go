@@ -38,6 +38,7 @@ func (n *Node) deltaHandler(message []byte) {
 	// m.Print()
 	n.msgCount = n.msgCount + 1
 	// send to Doc.ReceiveChan
+	fmt.Printf("inc insert:%v.\n", m.Op.Insert)
 	n.Doc.RecieveChan <- IncomingDelta{index: m.Index, lastIndex: m.LastIndex, op: m.Op, Origin: n.me}
 }
 
@@ -48,6 +49,8 @@ func (n *Node) sendDelta() {
 		case m := <-n.OutChan:
 			fmt.Printf("%d: received message to be forwarded\n%v\n", n.me, m)
 			b, _ := json.Marshal(m)
+			o, _ := json.Marshal(m.Log)
+			fmt.Println("out insert:", o)
 			n.Conn.WriteMessage(1, b)
 		case <-n.StopChan:
 		}

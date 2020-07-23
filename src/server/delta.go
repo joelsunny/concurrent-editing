@@ -47,9 +47,9 @@ type IncomingDelta struct {
 
 // OutgoingDelta structure
 type OutgoingDelta struct {
-	Type       string      `json:"type"`
-	Log        interface{} `json:"log"`
-	LastCommit int         `json:"lastCommit"`
+	Type       string `json:"type"`
+	Log        Log    `json:"log"`
+	LastCommit int    `json:"lastCommit"`
 }
 
 // Transform the delta with respect to unseen deltas
