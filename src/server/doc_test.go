@@ -16,6 +16,7 @@ func TestAddNode(t *testing.T) {
 	if (len(d.Nodes) != 1) || (len(d.lastCommits) != 1) {
 		t.Errorf("Expected msgCount to be %d but instead got %d!", 1, len(d.Nodes))
 	}
+	fmt.Println(d.Nodes)
 }
 
 func TestDeltaHandler(t *testing.T) {
@@ -27,18 +28,19 @@ func TestDeltaHandler(t *testing.T) {
 	b, _ := json.Marshal(m)
 	c.WriteMessage(1, b)
 	time.Sleep(1 * time.Second)
-
+	fmt.Println(d.Doc)
 }
 
 func TestBroadcast(t *testing.T) {
 	d := NewDocument()
 	c1 := &MockConn{ReadChan: make(chan Message), WriteChan: make(chan Message)}
-	d.AddNode(c1)
+	n1 := d.AddNode(c1)
 	c2 := &MockConn{ReadChan: make(chan Message), WriteChan: make(chan Message)}
-	d.AddNode(c2)
+	n2 := d.AddNode(c2)
 
 	// send message to the mock connection
-	m := OutChanMsg{log: Log{}, lastCommits: []int{0, 1}}
+	m := OutChanMsg{log: Log{}, lastCommits: map[int]int{n1.me: 0, n2.me: 1}, Origin: 3}
 	d.broadcast(m)
 	time.Sleep(2 * time.Second)
+	fmt.Println(d.Doc)
 }

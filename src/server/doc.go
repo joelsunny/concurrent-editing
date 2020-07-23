@@ -8,11 +8,11 @@ import (
 // Document structure for representing the document in memory
 type Document struct {
 	mu          sync.Mutex
-	Nodes       []*Node // list of nodes modifying the document
-	Doc         []Log   // Document is stored as a list of deltas
-	nextNode    int     // unique id for next node
-	nextIndex   int     // next log index
-	lastCommits []int   // list of last indices received from the nodes, clients maintain there own independent indices
+	Nodes       map[int]*Node // list of nodes modifying the document
+	Doc         []Log         // Document is stored as a list of deltas
+	nextNode    int           // unique id for next node
+	nextIndex   int           // next log index
+	lastCommits map[int]int   // list of last indices received from the nodes, clients maintain there own independent indices
 	// this needs to be transmitted back to clients so they can perform transforms on updates received from the server
 	// Try: a dumb client that won't do any transforms, the document at the server should still be correct
 	RecieveChan chan IncomingDelta // channel to communicate delta
@@ -25,6 +25,8 @@ func NewDocument() *Document {
 	d := Document{}
 	d.nextIndex = 0
 	d.nextNode = 0
+	d.Nodes = make(map[int]*Node)
+	d.lastCommits = make(map[int]int)
 	d.RecieveChan = make(chan IncomingDelta, 100)
 	d.OutChan = make(chan OutChanMsg, 100)
 	d.StopChan = make(chan bool, 10)
@@ -34,29 +36,22 @@ func NewDocument() *Document {
 }
 
 // AddNode adds a new user to the document
-func (d *Document) AddNode(Conn Connection) {
+func (d *Document) AddNode(Conn Connection) *Node {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	n := NewNode(Conn, d.nextNode, d)
+	d.Nodes[d.nextNode] = n
+	d.lastCommits[d.nextNode] = 0
 	d.nextNode = d.nextNode + 1
-	d.Nodes = append(d.Nodes, n)
-	d.lastCommits = append(d.lastCommits, 0)
+	return n
 }
 
 // RemoveNode removes the node
 func (d *Document) RemoveNode(id int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	var idx int
-	for i := 0; i < len(d.Nodes); i++ {
-		if d.Nodes[i].me == id {
-			idx = i
-			break
-		}
-	}
-
-	d.Nodes = append(d.Nodes[:idx], d.Nodes[idx+1:]...)
-	d.lastCommits = append(d.lastCommits[:idx], d.lastCommits[idx+1:]...)
+	delete(d.Nodes, id)
+	delete(d.lastCommits, id)
 }
 
 // handle delta
@@ -80,11 +75,10 @@ func (d *Document) handleDelta(m IncomingDelta) {
 func (d *Document) broadcast(m OutChanMsg) {
 	// transform log to outgoingdelta
 	fmt.Println("broadcasting")
-	for i := 0; i < len(d.Nodes); i++ {
-		if d.Nodes[i].me == m.Origin {
-			continue
+	for id, n := range d.Nodes {
+		if id != m.Origin {
+			n.OutChan <- OutgoingDelta{Type: "delta", Log: m.log, LastCommit: m.lastCommits[id]}
 		}
-		d.Nodes[i].OutChan <- OutgoingDelta{Type: "delta", Log: m.log, LastCommit: m.lastCommits[i]}
 	}
 }
 
@@ -98,8 +92,8 @@ func (d *Document) Run() {
 			go d.broadcast(m)
 		case <-d.StopChan:
 			// signal nodes to stop and exit
-			for i := 0; i < len(d.Nodes); i++ {
-				d.Nodes[i].StopChan <- true
+			for _, n := range d.Nodes {
+				n.StopChan <- true
 			}
 			return
 		}

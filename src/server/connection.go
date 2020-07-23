@@ -32,8 +32,14 @@ func (m *MockConn) ReadMessage() (int, []byte, error) {
 	}
 }
 
-// WriteMessage method
+// WriteMessage method sends data to the other end, not implemented for mocking
 func (m *MockConn) WriteMessage(mtype int, data []byte) error {
+
+	return nil
+}
+
+// SendMessage method for sending message to the read channel, not part of Connection interface
+func (m *MockConn) SendMessage(mtype int, data []byte) error {
 	d := Message{Type: mtype, Data: data}
 	m.ReadChan <- d
 	return nil

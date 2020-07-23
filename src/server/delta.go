@@ -34,7 +34,7 @@ func (m InMsg) Print() {
 type OutChanMsg struct {
 	log         Log
 	Origin      int
-	lastCommits []int
+	lastCommits map[int]int
 }
 
 // IncomingDelta structure
