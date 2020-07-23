@@ -9,6 +9,7 @@ var quill;
 // client side state variables
 var index = 0;
 var lastIndex = 0;
+var prevChar = '';
 
 class Editor extends React.Component {
 
@@ -37,6 +38,10 @@ class Editor extends React.Component {
         index += 1
     }
 
+    serverSync() {
+
+    }
+
     log(delta, oldDelta, source) {
         const logstream = document.getElementById("c" + this.props.id);
         logstream.innerHTML = "delta : " + JSON.stringify(delta) + "<br>" + "old: " + JSON.stringify(oldDelta) + "<br>" + "source: " + source + "<br>" + "-------------------<br><br>" + logstream.innerHTML;
@@ -58,7 +63,14 @@ class Editor extends React.Component {
                     m.op.retain = delta["ops"][i].retain
                 }
                 if (delta["ops"][i].insert !== undefined) {
-                    m.op.insert = delta["ops"][i].insert
+                    let ins = delta["ops"][i].insert
+                    m.op.insert = ins
+                    // if (prevChar == " ") {
+                    //     m.op.insert = " " + ins
+                    // } else {
+                    //     m.op.insert = ins
+                    // }
+                    // prevChar = ins
                 }
                 if (delta["ops"][i].delete !== undefined) {
                     m.op.delete = delta["ops"][i].delete
@@ -116,6 +128,20 @@ class ServerView extends Editor {
                                                 .insert(delta["insert"])
                                                 , 'api')
                     lastIndex = json_msg["log"]["index"]
+
+                } else if(MsgType === "sync") {
+                    if (json_msg["log"] === null) {
+                        return
+                    }
+                    for (let i = 0; i < json_msg["log"].length; i++) {
+                        let delta = json_msg["log"][i]["delta"]
+                        quill.updateContents(new Delta()
+                                                .retain(delta["retain"])
+                                                .delete(delta["delete"])
+                                                .insert(delta["insert"])
+                                                , 'api')
+                        lastIndex = json_msg["log"]["index"]
+                    }
                 } else {
                     console.log(MsgType)
                 }
